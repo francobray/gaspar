@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { ArrowLeft, MapPin, Star, Phone, Globe, MessageCircle, Clock, Loader2, Map, ExternalLink } from 'lucide-react';
+import { ArrowLeft, MapPin, Star, Phone, Globe, MessageCircle, Clock, Loader2, ExternalLink } from 'lucide-react';
 import GooglePlacesMap from './GooglePlacesMap';
 import { ProblemSummary, VendorData } from '../types';
 import { findVendors } from '../utils/vendorFinder';
@@ -196,35 +196,31 @@ export const VendorDiscovery: React.FC<VendorDiscoveryProps> = ({
             {/* Removed view toggle buttons */}
           </div>
 
-            {true ? (
-              <div className="space-y-6 mt-4">
-                {/* Map Section */}
-                {mapsKeyState ? (
-                  <div className="bg-gray-100 rounded-xl overflow-hidden">
-                    <GooglePlacesMap
-                      apiKey={mapsKeyState}
-                      query={`${(recommendedTerm || (problemSummary.category === 'hvac' ? 'AC specialist' : `${problemSummary.category} contractors`))} near ${zipCode}`}
-                      highlightKey={highlightKey}
-                    />
-                  </div>
-                ) : (
-                  // Fallback to a public Google Maps embed that does not require an API key
-                  <div className="bg-gray-100 rounded-xl overflow-hidden">
-                    <iframe
-                      src={`https://maps.google.com/maps?q=${encodeURIComponent((recommendedTerm || (problemSummary.category === 'hvac' ? 'AC specialist' : `${problemSummary.category} contractors`)) + ' near ' + zipCode)}&z=13&output=embed`}
-                      width="100%"
-                      height="520"
-                      style={{ border: 0 }}
-                      loading="lazy"
-                      referrerPolicy="no-referrer-when-downgrade"
-                      title="Vendor locations map (fallback)"
-                    />
-                  </div>
-                )}
-              </div>
-            ) : (
-            <>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-6">
+            {/* Embedded map always shown above the cards */}
+            <div className="space-y-6 mt-4">
+              {mapsKeyState ? (
+                <div className="bg-gray-100 rounded-xl overflow-hidden">
+                  <GooglePlacesMap
+                    apiKey={mapsKeyState}
+                    query={`${(recommendedTerm || (problemSummary.category === 'hvac' ? 'AC specialist' : `${problemSummary.category} contractors`))} near ${zipCode}`}
+                    highlightKey={highlightKey}
+                  />
+                </div>
+              ) : (
+                <div className="bg-gray-100 rounded-xl overflow-hidden">
+                  <iframe
+                    src={`https://maps.google.com/maps?q=${encodeURIComponent((recommendedTerm || (problemSummary.category === 'hvac' ? 'AC specialist' : `${problemSummary.category} contractors`)) + ' near ' + zipCode)}&z=13&output=embed`}
+                    width="100%"
+                    height="520"
+                    style={{ border: 0 }}
+                    loading="lazy"
+                    referrerPolicy="no-referrer-when-downgrade"
+                    title="Vendor locations map (fallback)"
+                  />
+                </div>
+              )}
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-6">
               {visibleVendors.map((vendor) => (
                 <div
                   key={vendor.id}
@@ -326,9 +322,7 @@ export const VendorDiscovery: React.FC<VendorDiscoveryProps> = ({
                   </div>
                 </div>
               ))}
-              </div>
-            </>
-          )}
+            </div>
         </div>
       </div>
     </div>
