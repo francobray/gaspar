@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Audio Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        .button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .recording {
+            background: #dc3545 !important;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background: #f8f9fa;
+        }
+        audio {
+            width: 100%;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>Audio Recording & Transcription Test</h1>
+    
+    <div>
+        <button id="recordBtn" class="button">Start Recording</button>
+        <button id="stopBtn" class="button" disabled>Stop Recording</button>
+        <button id="playBtn" class="button" disabled>Play Recording</button>
+    </div>
+    
+    <div id="status"></div>
+    <div id="result" class="result" style="display: none;"></div>
+    
+    <script>
+        let mediaRecorder;
+        let audioChunks = [];
+        let audioBlob = null;
+        let audioUrl = null;
+        
+        const recordBtn = document.getElementById('recordBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const playBtn = document.getElementById('playBtn');
+        const status = document.getElementById('status');
+        const result = document.getElementById('result');
+        
+        recordBtn.addEventListener('click', startRecording);
+        stopBtn.addEventListener('click', stopRecording);
+        playBtn.addEventListener('click', playRecording);
+        
+        async function startRecording() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+                audioChunks = [];
+                
+                mediaRecorder.ondataavailable = (event) => {
+                    audioChunks.push(event.data);
+                };
+                
+                mediaRecorder.onstop = async () => {
+                    audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                    audioUrl = URL.createObjectURL(audioBlob);
+                    
+                    // Send to backend for transcription
+                    await transcribeAudio();
+                };
+                
+                mediaRecorder.start();
+                recordBtn.disabled = true;
+                stopBtn.disabled = false;
+                recordBtn.classList.add('recording');
+                status.textContent = 'Recording...';
+                
+            } catch (error) {
+                status.textContent = 'Error: ' + error.message;
+            }
+        }
+        
+        function stopRecording() {
+            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                mediaRecorder.stop();
+                mediaRecorder.stream.getTracks().forEach(track => track.stop());
+            }
+            
+            recordBtn.disabled = false;
+            stopBtn.disabled = true;
+            playBtn.disabled = false;
+            recordBtn.classList.remove('recording');
+            status.textContent = 'Processing...';
+        }
+        
+        function playRecording() {
+            if (audioUrl) {
+                const audio = new Audio(audioUrl);
+                audio.play();
+            }
+        }
+        
+        async function transcribeAudio() {
+            try {
+                const formData = new FormData();
+                formData.append('audio', audioBlob, 'recording.webm');
+                formData.append('model', 'nova-2');
+                formData.append('language', 'en-US');
+                
+                status.textContent = 'Transcribing...';
+                
+                const response = await fetch('http://localhost:3001/api/deepgram/transcribe', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    result.style.display = 'block';
+                    result.innerHTML = `
+                        <h3>Transcription Result:</h3>
+                        <p><strong>Transcript:</strong> ${data.transcript}</p>
+                        <p><strong>Confidence:</strong> ${(data.confidence * 100).toFixed(1)}%</p>
+                        <p><strong>Processing Time:</strong> ${data.metadata.processingTime}ms</p>
+                        <audio controls src="${audioUrl}"></audio>
+                    `;
+                    status.textContent = 'Transcription completed!';
+                } else {
+                    status.textContent = 'Transcription failed: ' + (data.message || 'Unknown error');
+                    console.error('Transcription error:', data);
+                }
+                
+            } catch (error) {
+                status.textContent = 'Error: ' + error.message;
+                console.error('Transcription error:', error);
+            }
+        }
+    </script>
+</body>
+</html> 
